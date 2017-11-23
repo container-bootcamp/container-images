@@ -1,0 +1,77 @@
+FROM centos:7
+
+LABEL name="crunchydata/postgres" \
+        vendor="crunchy data" \
+      	PostgresVersion="9.5" \
+      	PostgresFullVersion="9.5.7" \
+        version="7.2" \
+        release="1.4.1" \
+        build-date="2017-05-11" \
+        url="https://crunchydata.com" \
+        summary="crunchy data postgres container" \
+        description="postgres container" \
+        io.k8s.description="postgres container" \
+        io.k8s.display-name="Crunchy postgres container" \
+        io.openshift.expose-services="" \
+        io.openshift.tags="crunchy,database"
+
+ENV PGVERSION="9.5" PGDG_REPO="pgdg-centos95-9.5-3.noarch.rpm"
+
+RUN rpm -Uvh https://download.postgresql.org/pub/repos/yum/${PGVERSION}/redhat/rhel-7-x86_64/${PGDG_REPO}
+
+RUN yum -y update && yum -y install epel-release \
+ && yum -y update glibc-common \
+ && yum -y install bind-utils \
+	gettext \
+	hostname \
+	nss_wrapper \
+	openssh-clients \
+	kubernetes-client \
+ 	procps-ng  \
+	rsync \
+ && yum -y clean all
+
+RUN localedef -i de_DE -f UTF-8 de_DE.UTF-8
+
+RUN yum -y install postgresql95-server postgresql95-contrib postgresql95 \
+	pgaudit_95 \
+	pgbackrest \
+ && yum -y clean all
+
+ RUN gpg --keyserver pool.sks-keyservers.net --recv-keys B42F6819007F00F88E364FD4036A9C25BF357DD4 \
+    && curl -o /usr/local/bin/gosu -SL "https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64" \
+    && curl -o /usr/local/bin/gosu.asc -SL "https://github.com/tianon/gosu/releases/download/1.7/gosu-amd64.asc" \
+    && gpg --verify /usr/local/bin/gosu.asc \
+    && rm /usr/local/bin/gosu.asc \
+    && rm -r /root/.gnupg/ \
+    && chmod +x /usr/local/bin/gosu
+
+ENV	PGROOT="/usr/pgsql-${PGVERSION}"
+
+# add path settings for postgres user
+ADD .bash_profile /var/lib/pgsql/
+
+# set up cpm directory
+RUN mkdir -p /opt/cpm/bin /opt/cpm/conf /pgdata /pgwal /pgconf /backup /recover /backrestrepo
+
+RUN chown -R postgres:postgres /opt/cpm /var/lib/pgsql \
+	/pgdata /pgwal /pgconf /backup /recover /backrestrepo
+
+
+# add volumes to allow override of pg_hba.conf and postgresql.conf
+# add volumes to allow backup of postgres files
+# add volumes to offer a restore feature
+# add volumes to allow storage of postgres WAL segment files
+# add volumes to locate WAL files to recover with
+# volume for pgbackrest to write to
+
+VOLUME /pgconf /pgdata /pgwal \
+  /backup /recover /backrestrepo
+
+# open up the postgres port
+EXPOSE 5432
+
+ADD bin /opt/cpm/bin
+ADD conf /opt/cpm/conf
+
+CMD ["/opt/cpm/bin/pathinit.sh"]

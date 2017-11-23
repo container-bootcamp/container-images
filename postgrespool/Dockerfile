@@ -1,0 +1,45 @@
+FROM centos:7
+
+LABEL name="crunchydata/pgpool" \
+				PostgresVersion="9.5" \
+				PostgresFullVersion="9.5.7" \
+        vendor="crunchy data" \
+        version="7.2" \
+        release="1.4.1" \
+        build-date="2017-05-11" \
+        url="https://crunchydata.com" \
+        summary="crunchy data pgpool container" \
+        description="pgpool container" \
+        io.k8s.description="pgpool container" \
+        io.k8s.display-name="Crunchy pgpool container" \
+        io.openshift.expose-services="" \
+        io.openshift.tags="crunchy,database"
+
+ENV PGVERSION="9.5" PGDG_REPO="pgdg-centos95-9.5-3.noarch.rpm"
+
+RUN rpm -Uvh https://download.postgresql.org/pub/repos/yum/${PGVERSION}/redhat/rhel-7-x86_64/${PGDG_REPO}
+
+# Install pgpool deps
+RUN yum -y update && yum -y --enablerepo=centosplus install gettext && \
+	yum install -y postgresql95  pgpool-II-95 pgpool-II-95-extensions \
+	procps-ng openssh-clients hostname &&  \
+	yum clean all -y
+
+RUN mkdir -p /opt/cpm/bin /opt/cpm/conf
+
+# add volumes to allow override of pgpool config files
+VOLUME ["/pgconf"]
+
+# open up the postgres port
+EXPOSE 5432
+
+ADD bin /opt/cpm/bin
+ADD conf /opt/cpm/conf/pgpool
+ADD conf/pool_hba.conf  /etc/pgpool-II-95/pool_hba.conf
+ADD conf/pool_passwd /etc/pgpool-II-95/pool_passwd
+
+RUN chown -R daemon:daemon /opt/cpm/bin
+
+USER daemon
+
+CMD ["/opt/cpm/bin/startpgpool.sh"]
