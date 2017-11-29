@@ -4,7 +4,7 @@ GROUP=containerbootcamp
 
 URI=$(REPO)/$(GROUP)/
 
-DIRS = sbt-project-builder github-webhook-handler postgres-simple opentracing-nginx postgrespool postgres cors-nginx zookeeper kafka alpine-varnish crest
+DIRS = sbt-project-builder github-webhook-handler postgres-simple opentracing-nginx postgrespool postgres cors-nginx zookeeper kafka alpine-varnish crest postgres-init
 
 images: 
 	for i in $(DIRS); do \
